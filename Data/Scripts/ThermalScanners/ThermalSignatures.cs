@@ -46,6 +46,13 @@ namespace ThermalScanners
 
         //Setup variables
         public bool FinishedSetup = false;
+		
+		//Nebula stuff (borrowed from MES)
+		public float nebulaEffect;
+		public bool insideNebula;
+		public float nebulaDensity;
+		public float nebulaMaterial;
+		public string nebulaWeather;
 
         public override void UpdateBeforeSimulation()
         {
@@ -660,42 +667,54 @@ namespace ThermalScanners
                         }
                         
 						var weatherIntensity = MyAPIGateway.Session.WeatherEffects.GetWeatherIntensity(gridPosition);
-                        if (weatherIntensity > 1)
-                        {
-                            weatherIntensity = 1;
-                        }
+						if (weatherIntensity != null) {
+							if (weatherIntensity > 1)
+							{
+								weatherIntensity = 1;
+							}
 
-                        if (weatherIntensity != 0 && weatherIntensity != null)
-                        {
-							//weather should reduce all signatures when it exists
+							//weather should reduce thermal when it exists
 							//not sure if clear weather also affects this
-                            weatherEffect += weatherIntensity * ThermalSync.HeatSettings.WeatherMultiplier;
-                        }
+							weatherEffect += weatherIntensity * ThermalSync.HeatSettings.WeatherMultiplier;
+						}
                     }
                 }
             }
 
-			//Compatibility for Jakaria's Nebula mod
-            var nebulaEffect = 0.0f;
+			//Compatibility for Jakaria's Nebula mod, borrowed from MES
+            nebulaEffect = 0.0f;
 
-			if (NebulaAPI.InsideNebula(gridPosition)) {
-
-				var nebulaWeather = NebulaAPI.GetWeather(gridPosition) ?? "N/A";
-
-				//Also checks for nebula weather effects
-				if (nebulaWeather != "N/A") {
+			//if (NebulaAPI.Registered) {
+				
+				if (NebulaAPI.InsideNebula(gridPosition)) {
 					
-					nebulaEffect += ThermalSync.HeatSettings.NebulaMultiplier * ThermalSync.HeatSettings.WeatherMultiplier;
+					insideNebula = true;
+					nebulaDensity = NebulaAPI.GetNebulaDensity(gridPosition); //nebula densities are often very low, probably not worth using this
+					nebulaMaterial = NebulaAPI.GetMaterial(gridPosition); //no use for this at the current time
+					nebulaWeather = NebulaAPI.GetWeather(gridPosition) ?? "N/A"; //no way to see weather intensity
+
+					//Also checks for nebula weather effects
+					if (nebulaWeather != "N/A") {
+						
+						nebulaEffect += ThermalSync.HeatSettings.NebulaMultiplier * ThermalSync.HeatSettings.WeatherMultiplier;
+						
+					} else {
+
+					nebulaEffect += ThermalSync.HeatSettings.NebulaMultiplier;
+					
+					}
 					
 				} else {
 
-				nebulaEffect += ThermalSync.HeatSettings.NebulaMultiplier;
+					insideNebula = false;
+					nebulaDensity = 0;
+					nebulaMaterial = 0;
+					nebulaWeather = "N/A";
+				}					
 				
-				}
-				
-			}
+			//}
 			
-			return thermal - (planetEffect - weatherEffect - nebulaEffect) * thermal);
+			return thermal * (1 - planetEffect) * (1 - weatherEffect) * (1 - nebulaEffect);
 
         }
 
@@ -725,10 +744,10 @@ namespace ThermalScanners
                     MyLog.Default.WriteLineAndConsole($"No Default Global Heat Generation File found. Creating one.");
                     ThermalSync.HeatSettings = new GlobalHeatSettings
                     {
-                        AtmosphericDensity = 1,
-                        GravityMultiplier = 1,
-                        WeatherMultiplier = 1,
-						NebulaMultiplier = 1,
+                        AtmosphericDensity = 0.5f, //1.0 means thermal signature is totally gone if in 1.0 atmosphere
+                        GravityMultiplier = 0.5f, //not used
+                        WeatherMultiplier = 0.5f, //1.0 means thermal signature is totally gone if in 1.0 weather strength
+						NebulaMultiplier = 0.5f, //1.0 means thermal signature is totally gone if in 1.0 nebula
                         LargeGridBaseRange = 25000,
                         SmallGridBaseRange = 15000
                     };
