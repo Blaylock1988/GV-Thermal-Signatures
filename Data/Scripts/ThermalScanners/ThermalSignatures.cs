@@ -62,7 +62,7 @@ namespace ThermalScanners
 				Update();
 			}
 			catch (Exception exc) {
-				MyLog.Default.WriteLineAndConsole($"[Thermal] Signature error, 	 {exc}");
+				MyLog.Default.WriteLineAndConsole($"[Thermal] Signature error, {exc}");
 			}
 		}
 		
@@ -302,6 +302,7 @@ namespace ThermalScanners
         {
             IsServer = MyAPIGateway.Multiplayer.IsServer;
             IsDedicated = MyAPIGateway.Utilities.IsDedicated;
+
             GetHeatGeneratorsAndDefaultSettings();
 
             if (!IsDedicated)
@@ -322,18 +323,7 @@ namespace ThermalScanners
                 }
 
                 ThermalSignaturesHistory = new Dictionary<string, float>();
-
-                      MyAPIGateway.Entities.GetEntities(myCubes, grid =>
-                            { 
-                                if (grid is IMyCubeGrid)
-                                {
-                                    if ((grid as IMyCubeGrid).GridSizeEnum == VRage.Game.MyCubeSize.Small || (grid as IMyCubeGrid).GridSizeEnum == VRage.Game.MyCubeSize.Large)
-                                    {
-                                        return true;
-                                    }
-                                }
-                                return false;
-                            });
+				
                 MyLog.Default.WriteLineAndConsole($"[Thermal] Setting up handlers");
                 MyAPIGateway.Entities.OnEntityAdd += Entities_OnEntityAdd;
 				//Sandbox.Game.Entities.MyEntities.OnEntityCreate += Entities_OnEntityCreate;
@@ -342,7 +332,7 @@ namespace ThermalScanners
 
             if (IsDedicated || IsServer)
             {
-                MyLog.Default.WriteLineAndConsole($"Registering Server");
+                MyLog.Default.WriteLineAndConsole($"[Thermal] Registering Server");
                 ThermalSync.RegisterServer();
             }
         }
@@ -382,6 +372,7 @@ namespace ThermalScanners
 			Entities_OnEntityAdd(obj);
 		}
 		*/
+
         private void Entities_OnEntityAdd(IMyEntity obj)
         {
 			//MyLog.Default.WriteLineAndConsole("[Thermal] New entity detected");
