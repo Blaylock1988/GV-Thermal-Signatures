@@ -116,24 +116,45 @@ namespace ThermalScanners
 					
                     if (MyAPIGateway.Session.IsCameraControlledObject && !player.Character.IsDead && player.Controller.ControlledEntity.GetType().Name.ToLower() != "mycharacter")
                     {
-                        if (myCubes.Count == 0)
-                        {
-                            MyAPIGateway.Entities.GetEntities(myCubes, grid =>
-                            { 
-                                if (grid is IMyCubeGrid)
-                                {
-                                    if ((grid as IMyCubeGrid).GridSizeEnum == VRage.Game.MyCubeSize.Small || (grid as IMyCubeGrid).GridSizeEnum == VRage.Game.MyCubeSize.Large)
-                                    {
-                                        return true;
-                                    }
-                                }
-                                return false;
-                            });
-                        }
+						if (myCubes.Count == 0) {
+							var sphere = new BoundingSphereD(player.GetPosition(), 30000);
+							HashSet<IMyEntity> entities = new HashSet<IMyEntity>(MyAPIGateway.Entities.GetEntitiesInSphere(ref sphere));
+
+							foreach (IMyEntity e in entities) {
+								if (!(e is IMyCubeGrid)) {
+									continue;
+								}
+					
+								if ((e as IMyCubeGrid).GridSizeEnum == VRage.Game.MyCubeSize.Small ||
+									(e as IMyCubeGrid).GridSizeEnum == VRage.Game.MyCubeSize.Large) {
+									var grid = e as IMyCubeGrid;
+									List<IMyCubeGrid> grids = new List<IMyCubeGrid>();
+									var gridGroup = grid.GetGridGroup(GridLinkTypeEnum.Physical);
+									gridGroup.GetGrids(grids);
+									
+									bool isStatic = false;
+									foreach (IMyCubeGrid g in grids) {
+										if (g.IsStatic) {
+											isStatic = true;
+											break;
+										}
+										
+										if (!isStatic && ((MyCubeGrid) grid).BlocksCount > ((MyCubeGrid) g).BlocksCount) {
+											grid = g;
+										}
+									}
+									
+									if (!isStatic) {
+										myCubes.Add(grid);
+									}
+								}
+							}
+						}
+
                         //MyLog.Default.WriteLineAndConsole("Scanning");
                         foreach (var grid in myCubes)
                         {
-                            if (grid == null)
+                            if (grid == null || !(grid is MyCubeGrid))
                             {
                                 continue;
                             }
@@ -141,11 +162,11 @@ namespace ThermalScanners
                             var thermalOutput = GetThermalOutput(grid as IMyCubeGrid);
 
                             //MyLog.Default.WriteLineAndConsole("Checking Storage");
-                            var gridId = grid.EntityId.ToString();
+                            
 
-                            var asGrid = grid as IMyCubeGrid;
+							var asGrid = grid as IMyCubeGrid;
+							var gridId = asGrid.EntityId.ToString();
                             IMyCubeGrid sameAs = null;
-
                             var testConnected = scannedGrids.Find(gridSearch =>
                             {
                                 if (asGrid.IsSameConstructAs(gridSearch))
