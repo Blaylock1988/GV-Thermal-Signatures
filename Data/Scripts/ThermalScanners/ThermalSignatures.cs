@@ -4,9 +4,11 @@ using Sandbox.Game.Entities.Character;
 using Sandbox.ModAPI;
 using SpaceEngineers.Game.ModAPI;
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Text;
 using VRage.Game.Components;
+using VRage.Game.Entity;
 using VRage.Game.ModAPI;
 using VRage.ModAPI;
 using VRage.Utils;
@@ -472,7 +474,7 @@ namespace ThermalScanners
                                 var ratio = powerProducer.CurrentOutput / baseOutput;
 
                                 var thermal = ThermalSync.reactorValue.HeatOutput * ratio;
-                                thermal = EnvironmentEffects(thermal, ThermalSync.reactorValue.AirMultiplier, block.GetPosition());
+                                thermal = PlanetEffects(thermal, ThermalSync.reactorValue.AirMultiplier, block.GetPosition());
                                 if (block.GridSizeEnum == VRage.Game.MyCubeSize.Small)
                                 {
                                     thermal *= ThermalSync.reactorValue.SmallGridMultiplier;
@@ -496,7 +498,7 @@ namespace ThermalScanners
                                 var ratio = powerProducer.CurrentOutput / baseOutput;
 
                                 var thermal = ThermalSync.batteryValue.HeatOutput * ratio;
-                                thermal = EnvironmentEffects(thermal, ThermalSync.batteryValue.AirMultiplier, block.GetPosition());
+                                thermal = PlanetEffects(thermal, ThermalSync.batteryValue.AirMultiplier, block.GetPosition());
 
                                 if (block.GridSizeEnum == VRage.Game.MyCubeSize.Small)
                                 {
@@ -521,7 +523,7 @@ namespace ThermalScanners
                                 var ratio = powerProducer.CurrentOutput / powerProducer.MaxOutput;
 
                                 var thermal = ThermalSync.solarValue.HeatOutput * ratio;
-                                thermal = EnvironmentEffects(thermal, ThermalSync.solarValue.AirMultiplier, block.GetPosition());
+                                thermal = PlanetEffects(thermal, ThermalSync.solarValue.AirMultiplier, block.GetPosition());
                                 if (block.GridSizeEnum == VRage.Game.MyCubeSize.Small)
                                 {
                                     thermal *= ThermalSync.solarValue.SmallGridMultiplier;
@@ -546,7 +548,7 @@ namespace ThermalScanners
                                 var ratio = powerProducer.CurrentOutput / powerProducer.MaxOutput;
 
                                 var thermal = ThermalSync.hydrogenValue.HeatOutput * ratio;
-                                thermal = EnvironmentEffects(thermal, ThermalSync.hydrogenValue.AirMultiplier, block.GetPosition());
+                                thermal = PlanetEffects(thermal, ThermalSync.hydrogenValue.AirMultiplier, block.GetPosition());
                                 if (block.GridSizeEnum == VRage.Game.MyCubeSize.Small)
                                 {
                                     thermal *= ThermalSync.hydrogenValue.SmallGridMultiplier;
@@ -593,7 +595,7 @@ namespace ThermalScanners
                                 {
                                     var ratio = thrust.CurrentThrust / baseThrust;
                                     var thermal = heat.HeatOutput * ratio;
-                                    thermal = EnvironmentEffects(thermal, heat.AirMultiplier, block.GetPosition());
+                                    thermal = PlanetEffects(thermal, heat.AirMultiplier, block.GetPosition());
                                     if (block.GridSizeEnum == VRage.Game.MyCubeSize.Small)
                                     {
                                         thermal *= heat.SmallGridMultiplier;
@@ -623,7 +625,7 @@ namespace ThermalScanners
                                         if (terminal.IsWorking)
                                         {
                                             var thermal = heat.HeatOutput;
-                                            thermal = EnvironmentEffects(thermal, heat.AirMultiplier, block.GetPosition());
+                                            thermal = PlanetEffects(thermal, heat.AirMultiplier, block.GetPosition());
                                             if (block.GridSizeEnum == VRage.Game.MyCubeSize.Small)
                                             {
                                                 thermal *= heat.SmallGridMultiplier;
@@ -664,7 +666,7 @@ namespace ThermalScanners
             }
         }
 
-        public float EnvironmentEffects(float thermal, float atmosphere, Vector3D gridPosition)
+        public float PlanetEffects(float thermal, float atmosphere, Vector3D gridPosition)
         {
             var planetEffect = 0.0f;
 			var weatherEffect = 0.0f;
