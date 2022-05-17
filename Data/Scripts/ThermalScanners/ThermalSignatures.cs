@@ -69,7 +69,7 @@ namespace ThermalScanners
 		public void Update() {
             if (FinishedSetup == false)
             {
-                //MyLog.Default.WriteLineAndConsole("Starting Setup");
+                MyLog.Default.WriteLineAndConsole($"[Therma] (Sig) Not initialized, setting up...");
                 FinishedSetup = true;
                 Setup();
             }
@@ -80,16 +80,17 @@ namespace ThermalScanners
 
                 if (ticks % 900 == 0)
                 {
+					MyLog.Default.WriteLineAndConsole($"[Thermal] Scanning thermal sigs...");
                     if (ThermalSync.HeatGenerators == null || ThermalSync.HeatGenerators.Count == 0)
                     {
-                        MyLog.Default.WriteLineAndConsole("Waiting for server to send the list for Heat Generators");
+                        MyLog.Default.WriteLineAndConsole("[Thermal] Waiting for server to send the list for Heat Generators");
                         ThermalSync.RequestUpdate(MyAPIGateway.Session.LocalHumanPlayer.IdentityId);
                         return;
                     }
 
                     if (ThermalSync.HeatSettings == null)
                     {
-                        MyLog.Default.WriteLineAndConsole("Waiting for server to send the list for the Heat Settings");
+                        MyLog.Default.WriteLineAndConsole("[Thermal] Waiting for server to send the list for the Heat Settings");
                         ThermalSync.RequestUpdate(MyAPIGateway.Session.LocalHumanPlayer.IdentityId);
                         return;
                     }
@@ -109,8 +110,7 @@ namespace ThermalScanners
 					
 					foreach (var oldGps in MyAPIGateway.Session.GPS.GetGpsList(player.IdentityId)) {
 						if (oldGps.Name.Contains("Thermal Signature")) {
-							
-							if (!oldGps.Name.Contains("Synced")) {
+							if (!oldGps.Name.Contains("Synced") && !oldGps.Description.Contains("-")) {
 								MyAPIGateway.Session.GPS.RemoveGps(player.IdentityId, oldGps);
 							}
 						}
@@ -165,10 +165,10 @@ namespace ThermalScanners
 
                             //MyLog.Default.WriteLineAndConsole("Checking Storage");
                             
-
 							var asGrid = grid as IMyCubeGrid;
 							var gridId = asGrid.EntityId.ToString();
                             IMyCubeGrid sameAs = null;
+
                             var testConnected = scannedGrids.Find(gridSearch =>
                             {
                                 if (asGrid.IsSameConstructAs(gridSearch))
@@ -235,7 +235,6 @@ namespace ThermalScanners
                                 heatMap.Location = Vector3.Divide(heatMap.Location + sameAs.GetPosition(), 2);
                                 heatMaps[sameAs] = heatMap;
                             }
-
                         }
 
                         foreach (var grid in heatMaps)
@@ -247,8 +246,8 @@ namespace ThermalScanners
 								
 								var distanceInKm = Convert.ToInt32(thermalOutput) / 1000;
 
-                                var gps = MyAPIGateway.Session.GPS.Create($"Thermal Signature ({distanceInKm} km)", $"GetTimeMs()", location, false, true);
-                                gps.DiscardAt = MyAPIGateway.Session.ElapsedPlayTime + new TimeSpan(0, 0, 12);
+                                var gps = MyAPIGateway.Session.GPS.Create($"Thermal Signature ({distanceInKm} km)", grid.Key.EntityId.ToString(), location, false, true);
+                                gps.DiscardAt = MyAPIGateway.Session.ElapsedPlayTime + new TimeSpan(0, 0, 15);
                                 gps.GPSColor = GetThreat(thermalOutput);
                                 MyAPIGateway.Session.GPS.AddGps(player.IdentityId, gps);
 								MyAPIGateway.Session.GPS.SetShowOnHud(player.IdentityId, gps, true);
@@ -307,18 +306,18 @@ namespace ThermalScanners
 
             if (!IsDedicated)
             {
-                MyLog.Default.WriteLineAndConsole($"Not Dedicated");
+                MyLog.Default.WriteLineAndConsole($"[Thermal] Not Dedicated");
                 GetPlanets();
-                MyLog.Default.WriteLineAndConsole($"Got Planets");
+                MyLog.Default.WriteLineAndConsole($"[Thermal] Got Planets");
                 if (myCubes == null)
                 {
-                    MyLog.Default.WriteLineAndConsole($"Set Cubes");
+                    MyLog.Default.WriteLineAndConsole($"[Thermal] Set Cubes");
                     myCubes = new HashSet<IMyEntity>();
                     
                 }
                 if (ThermalSignaturesHistory == null)
                 {
-                    MyLog.Default.WriteLineAndConsole($"Set History");
+                    MyLog.Default.WriteLineAndConsole($"[Thermal] Set History");
                     ThermalSignaturesHistory = new Dictionary<string, float>();
                 }
 
@@ -335,8 +334,9 @@ namespace ThermalScanners
                                 }
                                 return false;
                             });
-                MyLog.Default.WriteLineAndConsole($"Setting up handlers");
+                MyLog.Default.WriteLineAndConsole($"[Thermal] Setting up handlers");
                 MyAPIGateway.Entities.OnEntityAdd += Entities_OnEntityAdd;
+				//Sandbox.Game.Entities.MyEntities.OnEntityCreate += Entities_OnEntityCreate;
                 ThermalSync.Register();
             }
 
@@ -346,9 +346,6 @@ namespace ThermalScanners
                 ThermalSync.RegisterServer();
             }
         }
-
-
-
 
         private void Bag_OnStaticChanged(MyCubeGrid grid, bool changed)
         {
