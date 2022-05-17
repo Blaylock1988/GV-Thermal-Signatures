@@ -395,7 +395,20 @@ namespace ThermalScanners
                 {
                     if (!myCubes.Contains(grid))
                     {
-                        myCubes.Add(grid);
+						List<IMyCubeGrid> grids = new List<IMyCubeGrid>();
+						var gridGroup = bag.GetGridGroup(GridLinkTypeEnum.Physical);
+						gridGroup.GetGrids(grids);
+						
+						foreach (IMyCubeGrid g in grids) {
+							if (g.IsStatic) {
+								return;
+							}
+							
+							if (((MyCubeGrid) bag).BlocksCount > ((MyCubeGrid) g).BlocksCount) {
+								bag = g;
+							}
+						}
+                        myCubes.Add(bag);
                     }
                 }
             }
@@ -420,8 +433,32 @@ namespace ThermalScanners
                 List<IMyEntity> ThermalProducers = new List<IMyEntity>();
 
 
+				List<IMyCubeGrid> grids = new List<IMyCubeGrid>();
+				var gridGroup = block.GetGridGroup(GridLinkTypeEnum.Physical);
+				if (gridGroup != null) {
+					gridGroup.GetGrids(grids);
+				}
+				
+				int totalPCU = 0;
+				bool isStatic = block.IsStatic;
+				bool piloted = false;
+				foreach (IMyCubeGrid g in grids) {
+					if (g == null) {
+						continue;
+					}
 
-                if (block.IsStatic)
+					totalPCU += ((MyCubeGrid) g).BlocksPCU;
+
+					if (g.IsStatic) {
+						isStatic = true;
+					}
+					
+					if (((MyCubeGrid) g).OccupiedBlocks.Count > 0) {
+						piloted = true;
+					}
+				}
+				
+                if (isStatic || totalPCU < 15000 || !piloted)
                 {
                     //MyLog.Default.WriteLineAndConsole("Static");
                     return 0.0f;
