@@ -93,9 +93,11 @@ namespace ThermalSectorSync.Session
                 List<GpsCustomType> gpsList = MyAPIGateway.Utilities.SerializeFromBinary<List<GpsCustomType>>(obj);
 
                 IMyPlayer localPlayer = MyAPIGateway.Session.LocalHumanPlayer;
-
-                if (localPlayer == null)
-                    return;
+				
+				// if player has no character or is dead or is not in a cockpit, skip them
+				if (localPlayer == null || localPlayer.Character == null || localPlayer.Character.IsDead || localPlayer.Controller?.ControlledEntity == null) {
+					return;
+				}
 
                 foreach (GpsCustomType gps in gpsList)
                 {
@@ -111,7 +113,7 @@ namespace ThermalSectorSync.Session
 						//MyLog.Default.WriteLineAndConsole($"[Thermal] creating synced gps: {gps.Name}");
 						var syncedGpsName = "Synced (TS): " + gps.Name;
 						var createdGps = MyAPIGateway.Session.GPS.Create(syncedGpsName, gps.Description, gps.Coords, true, true);
-						createdGps.DiscardAt = MyAPIGateway.Session.ElapsedPlayTime + new TimeSpan(0, 0, 30);
+						createdGps.DiscardAt = MyAPIGateway.Session.ElapsedPlayTime + new TimeSpan(0, 0, 15);
 						createdGps.GPSColor = new Color(255,255,153);
 						MyAPIGateway.Session.GPS.AddLocalGps(createdGps);
 					}
@@ -124,10 +126,13 @@ namespace ThermalSectorSync.Session
 
         private void Update()
         {
+			HashSet<String> alreadySeenGrids = new HashSet<String>();
+			Dictionary<long, HashSet<String>> seenGridsPerPlayer = new Dictionary<long, HashSet<String>>();
+			
             try {
 
                 if (!init) {
-					MyLog.Default.WriteLineAndConsole($"[Thermal] Not initialized, setting up...");
+					MyLog.Default.WriteLineAndConsole($"[Thermal] (Sector sync) Not initialized, setting up...");
                     if (MyAPIGateway.Session == null) {
 						//MyLog.Default.WriteLineAndConsole($"[Thermal] session null");
                         return;
@@ -147,35 +152,45 @@ namespace ThermalSectorSync.Session
 
                     List<GpsCustomType> gpsList = new List<GpsCustomType>();
 
-					timer = 1800; //30 seconds
-					long timestamp = (int)DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1)).TotalSeconds * (long)1000;
+					timer = 900; //15 seconds
 
-					//MyLog.Default.WriteLineAndConsole($"[Thermal] Searching for gps... players: {players.Count}");
-					
-					GpsCustomType closestGps = null;
-					double closestDistance = double.MaxValue;
-					
+					//MyLog.Default.WriteLineAndConsole($"[Thermal] Searching for gps... players: {players.Count}");	
                     foreach (IMyPlayer p in players)
                     {
                         // if player has no character or is dead or is not in a cockpit, skip them
-                        if (p.Character == null || p.Character.IsDead || p.Controller?.ControlledEntity == null) {
-                            continue;
-						}
-						if (p.Controller.ControlledEntity.GetType().Name.ToLower() != "mycharacter") {
+						if(p == null || p.Character == null || p.Character.IsDead || 
+						   p.Controller?.ControlledEntity == null || p.Controller.ControlledEntity.GetType().Name.ToLower() == "mycharacter") {
 							continue;
 						}
-
+						
                         // get his GPS list
 						List<IMyGps> gpsListTmp = MyAPIGateway.Session.GPS.GetGpsList(p.IdentityId);
 						//MyLog.Default.WriteLineAndConsole($"[Thermal] Searching through {gpsListTmp.Count} gps points for player {p.IdentityId}");
+						
+						GpsCustomType closestGps = null;
+						double closestDistance = double.MaxValue;
                         foreach (var gps in gpsListTmp) {
                             // find all GPS positions that fit the criteria
+							
+							if (gps.Name.Contains("Thermal Signature") && gps.Description.Contains("-")) {
+								MyAPIGateway.Session.GPS.RemoveGps(p.IdentityId, gps);
+							}
 
-                            if (!gps.Name.Contains("Thermal Signature") || gps.Name.Contains("Synced (TS):")) {
+                            if (gps.Name.Contains("Thermal Signature") && (gps.Name.Contains("Synced (TS):") || gps.Description.Contains("-"))){
                                 continue;
 							}
 							
+							if (!gps.Name.Contains("Thermal Signature")) {
+								continue;
+							}
+							
 							//MyLog.Default.WriteLineAndConsole($"[Thermal] gps.Name: {gps.Name}");
+							
+							if (!seenGridsPerPlayer.ContainsKey(p.IdentityId)) {
+								seenGridsPerPlayer[p.IdentityId] = new HashSet<String>();
+							}
+							
+							seenGridsPerPlayer[p.IdentityId].Add(gps.Description);
 
 							GpsCustomType customGps = new GpsCustomType() {
 								Name = gps.Name,
@@ -189,13 +204,42 @@ namespace ThermalSectorSync.Session
 								closestGps = customGps;
 							}
                         }
+						
+						if (closestGps != null && !alreadySeenGrids.Contains(closestGps.Description)) {
+							gpsList.Add(closestGps);
+							alreadySeenGrids.Add(closestGps.Description);
+						}
                     }
 					
-					if (closestGps != null) {
-						gpsList.Add(closestGps);
+					//MyLog.Default.WriteLineAndConsole($"Found {gpsList.Count} thermal gps");
+					
+					foreach (IMyPlayer p in players) {
+						if(p == null || p.Character == null || p.Character.IsDead || 
+						   p.Controller?.ControlledEntity == null || p.Controller.ControlledEntity.GetType().Name.ToLower() == "mycharacter") {
+							continue;
+						}
+						
+						foreach (GpsCustomType gps in gpsList) {
+							if (seenGridsPerPlayer.ContainsKey(p.IdentityId) && seenGridsPerPlayer[p.IdentityId].Contains(gps.Description)) {
+								continue;
+							}
+							
+							var start = gps.Name.IndexOf("(") + 1;
+							
+							var distance = float.Parse(gps.Name.Substring(start, gps.Name.IndexOf(")") - start - 3)) * 1000;
+
+							//MyLog.Default.WriteLineAndConsole($"GPS distance is {distance:0.00}, player distance is {Vector3D.Distance(p.GetPosition(), gps.Coords):0.00}");	
+
+							if (Vector3D.Distance(p.GetPosition(), gps.Coords) <= distance) {										
+								var newGps = MyAPIGateway.Session.GPS.Create(gps.Name, gps.Description + "-", gps.Coords, false, true);
+                                newGps.DiscardAt = MyAPIGateway.Session.ElapsedPlayTime + new TimeSpan(0, 0, 15);
+                                newGps.GPSColor = GetThreat(distance);
+                                MyAPIGateway.Session.GPS.AddGps(p.IdentityId, newGps);
+								MyAPIGateway.Session.GPS.SetShowOnHud(p.IdentityId, newGps, true);
+							}
+						}
 					}
 
-                    // broadcast closest gps to all other sectors
                     if (gpsList.Count > 0) {
 						//MyLog.Default.WriteLineAndConsole($"[Thermal] sending gps to other servers...");
                         var serializedGps = MyAPIGateway.Utilities.SerializeToBinary<List<GpsCustomType>>(gpsList);
@@ -218,5 +262,26 @@ namespace ThermalSectorSync.Session
                 MyAPIGateway.Multiplayer.UnregisterMessageHandler(CliComId, HandleCrossServerClientThermalSignature);
             }
 		}
+		
+		public Color GetThreat(float thermalOutput)
+        {
+            if (thermalOutput <= 25000)
+            {
+                return Color.White;
+            } else if (thermalOutput <= 50000)
+            {
+                return Color.LightBlue;
+            } else if (thermalOutput <= 100000)
+            {
+                return Color.Yellow;
+            } else if (thermalOutput <= 150000)
+            {
+                return Color.Orange;
+            } else
+            {
+                return Color.Red;
+            }
+
+        }
 	}
 }

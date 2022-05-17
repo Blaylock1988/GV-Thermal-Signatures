@@ -76,7 +76,7 @@ namespace ThermalScanners
               
                 ticks++;
 
-                if (ticks % 720 == 0)
+                if (ticks % 900 == 0)
                 {
                     if (ThermalSync.HeatGenerators == null || ThermalSync.HeatGenerators.Count == 0)
                     {
@@ -731,6 +731,7 @@ namespace ThermalScanners
                 var defaultfile = "DefaultGenerators.xml";
 
                 //ThermalSync.HeatSettings
+				/*
                 if (MyAPIGateway.Utilities.FileExistsInLocalStorage(defaultfile, typeof(GlobalHeatSettings)))
                 {
                     MyLog.Default.WriteLineAndConsole($"Loading Global Heat Generators from DefaultGenerators.xml");
@@ -744,12 +745,12 @@ namespace ThermalScanners
                     MyLog.Default.WriteLineAndConsole($"No Default Global Heat Generation File found. Creating one.");
                     ThermalSync.HeatSettings = new GlobalHeatSettings
                     {
-                        AtmosphericDensity = 0.5f, //1.0 means thermal signature is totally gone if in 1.0 atmosphere
-                        GravityMultiplier = 0.5f, //not used
-                        WeatherMultiplier = 0.5f, //1.0 means thermal signature is totally gone if in 1.0 weather strength
+                        AtmosphericDensity = 1,
+                        GravityMultiplier = 1,
+                        WeatherMultiplier = 1,
 						NebulaMultiplier = 0.5f, //1.0 means thermal signature is totally gone if in 1.0 nebula
-                        LargeGridBaseRange = 25000,
-                        SmallGridBaseRange = 15000
+                        LargeGridBaseRange = 12500,
+                        SmallGridBaseRange = 7500
                     };
 
                     var serialSet = MyAPIGateway.Utilities.SerializeToXML(ThermalSync.HeatSettings);
@@ -760,6 +761,16 @@ namespace ThermalScanners
                     }
 
                 }
+				*/
+				ThermalSync.HeatSettings = new GlobalHeatSettings
+				{
+					AtmosphericDensity = 1,
+					GravityMultiplier = 1,
+					WeatherMultiplier = 1,
+					NebulaMultiplier = 0.5f, //1.0 means thermal signature is totally gone if in 1.0 nebula
+					LargeGridBaseRange = 12500,
+					SmallGridBaseRange = 7500
+				};
 
                 var heatfile = "HeatGenerators.xml";
 /*                 if (MyAPIGateway.Utilities.FileExistsInLocalStorage(heatfile, typeof(List<HeatGenerator>)))
@@ -786,7 +797,7 @@ namespace ThermalScanners
 							AirMultiplier = 0.5f,
 							WeatherMultiplier = 1,
 							GridSize = GridSize.all,
-							SmallGridMultiplier = 1f
+							SmallGridMultiplier = 0.5f
 						},
 
 						new HeatGenerator{
@@ -796,7 +807,7 @@ namespace ThermalScanners
 							AirMultiplier = 1f,
 							WeatherMultiplier = 1,
 							GridSize = GridSize.all,
-							SmallGridMultiplier = 1f
+							SmallGridMultiplier = 0.5f
 						},
 
 						new HeatGenerator{
@@ -806,7 +817,7 @@ namespace ThermalScanners
 							AirMultiplier = 0.05f,
 							WeatherMultiplier = 1,
 							GridSize = GridSize.all,
-							SmallGridMultiplier = 1f
+							SmallGridMultiplier = 0.5f
 						},
 
 						new HeatGenerator{
@@ -816,7 +827,7 @@ namespace ThermalScanners
 							AirMultiplier = 0.50f,
 							WeatherMultiplier = 1,
 							GridSize = GridSize.all,
-							SmallGridMultiplier = 1f
+							SmallGridMultiplier = 0.5f
 						},
 
 						new HeatGenerator{
@@ -826,17 +837,17 @@ namespace ThermalScanners
 							AirMultiplier = 0.25f,
 							WeatherMultiplier = 1,
 							GridSize = GridSize.all,
-							SmallGridMultiplier = 1f
+							SmallGridMultiplier = 0.5f
 						},
 
 						new HeatGenerator{
 							SubtypeId = "hydrogen",
 							BlockCategory = BlockCategory.thrust,
-							HeatOutput = 0.75f,
+							HeatOutput = 0.50f,
 							AirMultiplier = 1f,
 							WeatherMultiplier = 1,
 							GridSize = GridSize.all,
-							SmallGridMultiplier = 1f
+							SmallGridMultiplier = 0.5f
 						}
 					};
 
