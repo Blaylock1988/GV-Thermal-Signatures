@@ -359,15 +359,36 @@ namespace ThermalScanners
                 {
                     if (!myCubes.Contains(grid))
                     {
-                        myCubes.Add(grid);
+						List<IMyCubeGrid> grids = new List<IMyCubeGrid>();
+						var gridGroup = bag.GetGridGroup(GridLinkTypeEnum.Physical);
+						gridGroup.GetGrids(grids);
+						
+						foreach (IMyCubeGrid g in grids) {
+							if (g.IsStatic) {
+								return;
+							}
+							
+							if (((MyCubeGrid) bag).BlocksCount > ((MyCubeGrid) g).BlocksCount) {
+								bag = g;
+							}
+						}
+
+                        myCubes.Add(bag);
                     }
                 }
             }
         }
-
-
+		
+		/*
+		private void Entities_OnEntityCreate(MyEntity obj) {
+			MyLog.Default.WriteLineAndConsole("Detected created grid...");
+			Entities_OnEntityAdd(obj);
+		}
+		*/
         private void Entities_OnEntityAdd(IMyEntity obj)
         {
+			//MyLog.Default.WriteLineAndConsole("[Thermal] New entity detected");
+			
             if (!myCubes.Contains(obj))
             {
                 if (obj is IMyCubeGrid)
@@ -375,15 +396,30 @@ namespace ThermalScanners
                     var bag = obj as IMyCubeGrid;
                     if (!bag.IsStatic)
                     {
-                        //MyLog.Default.WriteLineAndConsole("Adding Grid");
-                        //if we want to split this up down the road, we can do a simple check on the gridsize enum.
-                        myCubes.Add(obj);
+						List<IMyCubeGrid> grids = new List<IMyCubeGrid>();
+						var gridGroup = bag.GetGridGroup(GridLinkTypeEnum.Physical);
+						gridGroup.GetGrids(grids);
+						
+						foreach (IMyCubeGrid g in grids) {
+							if (g.IsStatic) {
+								g.OnPhysicsChanged += Obj_OnPhysicsChanged;
+								return;
+							}
+							
+							if (((MyCubeGrid) bag).BlocksCount > ((MyCubeGrid) g).BlocksCount) {
+								bag = g;
+							}
+						}
+
+                        myCubes.Add(bag);
                     } else
                     {
-                        obj.OnPhysicsChanged += Obj_OnPhysicsChanged; ;
+                        obj.OnPhysicsChanged += Obj_OnPhysicsChanged;
                     }
                 }
-            }
+            } else {
+				//MyLog.Default.WriteLineAndConsole("[Thermal] Already added grid");
+			}
         }
 
         private void Obj_OnPhysicsChanged(IMyEntity grid)
