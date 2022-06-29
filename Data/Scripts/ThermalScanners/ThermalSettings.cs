@@ -21,39 +21,37 @@ namespace ThermalScanners
         public float AtmosphericDensity { get; set; }
         [ProtoMember(5), XmlElement]
         public float GravityMultiplier { get; set; }
-        [ProtoMember(6), XmlElement]
-        public float NebulaMultiplier { get; set; }
 
     }
 
     [ProtoContract, Serializable]
     public class HeatGenerator
     {
-        [ProtoMember(7), XmlElement]
+        [ProtoMember(6), XmlElement]
         public string SubtypeId { get; set; }
-        [ProtoMember(8), XmlElement]
+        [ProtoMember(7), XmlElement]
         public float HeatOutput { get; set; }
-        [ProtoMember(9), XmlElement]
+        [ProtoMember(8), XmlElement]
         public BlockCategory BlockCategory { get; set; }
-        [ProtoMember(10), XmlElement]
+        [ProtoMember(9), XmlElement]
         public float AirMultiplier { get; set; }
-        [ProtoMember(11), XmlElement]
+        [ProtoMember(10), XmlElement]
         public float WeatherMultiplier { get; set; }
-        [ProtoMember(12), XmlElement]
+        [ProtoMember(11), XmlElement]
         public GridSize GridSize { get; set; }
-        [ProtoMember(13), XmlElement]
+        [ProtoMember(12), XmlElement]
         public float SmallGridMultiplier { get; set; }
-        [ProtoMember(14), XmlElement]
+        [ProtoMember(13), XmlElement]
         public float LargeGridMultiplier { get; set; } = 1.0f;
-        [ProtoMember(15), XmlElement]
+        [ProtoMember(14), XmlElement]
         public float StationMultiplier { get; set; } = 1.0f;
     }
     [ProtoContract, Serializable]
     public struct MessagePacket
     {
-        [ProtoMember(16), XmlElement]
+        [ProtoMember(15), XmlElement]
         public List<HeatGenerator> heatGenerators { get; set; }
-        [ProtoMember(17), XmlElement]
+        [ProtoMember(16), XmlElement]
         public GlobalHeatSettings settings { get; set; }
     }
 }
