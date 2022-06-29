@@ -20,7 +20,7 @@ namespace ThermalScanners
         [ProtoMember(4), XmlElement]
         public float AtmosphericDensity { get; set; }
         [ProtoMember(5), XmlElement]
-        public float GravityMultiplier { get; set; }
+        public float NebulaMultiplier { get; set; }
 
     }
 

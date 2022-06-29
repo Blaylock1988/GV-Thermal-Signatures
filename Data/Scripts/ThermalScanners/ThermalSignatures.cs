@@ -16,6 +16,10 @@ using VRageMath;
 using IMyCubeGrid = VRage.Game.ModAPI.IMyCubeGrid;
 using IMyEntity = VRage.ModAPI.IMyEntity;
 
+using Jakaria.API;
+using IMyWeatherEffects = VRage.Game.ModAPI.IMyWeatherEffects;
+using Sandbox.Game.SessionComponents;
+
 
 namespace ThermalScanners
 {
@@ -45,6 +49,13 @@ namespace ThermalScanners
 
         //Setup variables
         public bool FinishedSetup = false;
+		
+		//Nebula stuff (borrowed from MES)
+		public float nebulaEffect;
+		public bool insideNebula;
+		public float nebulaDensity;
+		public float nebulaMaterial;
+		public string nebulaWeather;
 
         public override void UpdateBeforeSimulation()
         {
@@ -475,11 +486,12 @@ namespace ThermalScanners
 					}
 				}
 				
-                if (isStatic || totalPCU < 15000 || !piloted)
-                {
+                //if (isStatic || totalPCU < 15000 || !piloted)
+				//if (isStatic || !piloted)
+                //{
                     //MyLog.Default.WriteLineAndConsole("Static");
-                    return 0.0f;
-                }
+                //    return 0.0f;
+                //}
 
                 var gts = MyAPIGateway.TerminalActionsHelper.GetTerminalSystemForGrid(block);
                 if (gts != null)
@@ -720,16 +732,16 @@ namespace ThermalScanners
             }
         }
 
-        public float PlanetEffects(float thermal, float atmosphere, Vector3D gridPosition)
+        public float PlanetEffects(float thermal, float airMultiplier, Vector3D gridPosition)
         {
             var planetEffect = 0.0f;
-
+			
             foreach (var planet in planets)
             {
 
                 if (Vector3D.DistanceSquared(gridPosition, planet.WorldMatrix.Translation) < (planet.AtmosphereRadius * planet.AtmosphereRadius))
                 {
-                    if (atmosphere != 0)
+                    if (airMultiplier != 0)
                     {
                         var airDensity = planet.GetAirDensity(gridPosition);
                         if (airDensity > 1)
@@ -739,13 +751,47 @@ namespace ThermalScanners
 
                         if (airDensity != 0)
                         {
-                            planetEffect += (atmosphere * airDensity) * ThermalSync.HeatSettings.AtmosphericDensity;
+							
+							planetEffect = (airMultiplier * airDensity) * ThermalSync.HeatSettings.AtmosphericDensity;
+							
+							//Added planet weather stuff, should only happen if in atmosphere
+							var planetWeatherName = MyAPIGateway.Session.WeatherEffects.GetWeather(gridPosition);
+							var planetWeatherIntensity = MyAPIGateway.Session.WeatherEffects.GetWeatherIntensity(gridPosition);
+							if (planetWeatherIntensity != null && !planetWeatherName.ToLower().Contains("clear"));
+							{
+								planetWeatherIntensity = (planetWeatherIntensity > 1) ? 1 : planetWeatherIntensity;
+								
+								planetEffect *= planetWeatherIntensity * ThermalSync.HeatSettings.WeatherMultiplier;
+							}
                         }
                     }
                 }
             }
 
-            return thermal - (planetEffect * thermal);
+			//Compatibility for Jakaria's Nebula mod, borrowed from MES
+            nebulaEffect = 0.0f;
+			insideNebula = false;
+			nebulaDensity = 0f;
+			nebulaWeather = "N/A";
+
+			if (NebulaAPI.InsideNebula(gridPosition)) 
+			{
+				insideNebula = true;
+				nebulaDensity = NebulaAPI.GetNebulaDensity(gridPosition); 
+				nebulaWeather = NebulaAPI.GetWeather(gridPosition) ?? "N/A"; 
+				//nebula densities are often very low, assuming 1 if in nebula
+				nebulaEffect = ThermalSync.HeatSettings.NebulaMultiplier;
+
+				//Check for nebula weather effects
+				if (nebulaWeather != "N/A") 
+				{
+					//currently no way to get nebula weather intensity (assume 1 if it exists)
+					//This reuses the same weather multiplier used for planet weather				
+					nebulaEffect *= ThermalSync.HeatSettings.WeatherMultiplier;
+				}
+			}					
+			//New thermal equation using weather and nebula effects as thermal reducers
+			return thermal * (1 - planetEffect) * (1 - nebulaEffect);
         }
 
         public struct HeatMaps
@@ -794,8 +840,8 @@ namespace ThermalScanners
 				ThermalSync.HeatSettings = new GlobalHeatSettings
 				{
 					AtmosphericDensity = 1,
-					GravityMultiplier = 1,
-					WeatherMultiplier = 1,
+					NebulaMultiplier = 0.5f, //1.0 means thermal signature is totally gone if in 1.0 nebula
+					WeatherMultiplier = 0.5f,
 					LargeGridBaseRange = 12500,
 					SmallGridBaseRange = 7500
 				};
