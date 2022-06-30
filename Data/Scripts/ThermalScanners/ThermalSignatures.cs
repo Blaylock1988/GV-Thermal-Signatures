@@ -415,32 +415,37 @@ namespace ThermalScanners
 
         private void Obj_OnPhysicsChanged(IMyEntity grid)
         {
-            var bag = grid as IMyCubeGrid;
-            if (bag != null)
-            {
-                
-                if (!bag.IsStatic)
-                {
-                    if (!myCubes.Contains(grid))
-                    {
-                        List<IMyCubeGrid> grids = new List<IMyCubeGrid>();
-                        var gridGroup = bag.GetGridGroup(GridLinkTypeEnum.Physical);
-                        gridGroup.GetGrids(grids);
-                        
-                        foreach (IMyCubeGrid g in grids) {
-                            if (g.IsStatic) {
-                                return;
-                            }
-                            
-                            if (((MyCubeGrid) bag).BlocksCount > ((MyCubeGrid) g).BlocksCount) {
-                                bag = g;
-                            }
-                        }
-                        myCubes.Add(bag);
-                    }
-                }
-            }
-        }
+			try {
+				var bag = grid as IMyCubeGrid;
+				if (bag != null)
+				{
+					
+					if (!bag.IsStatic)
+					{
+						if (!myCubes.Contains(grid))
+						{
+							List<IMyCubeGrid> grids = new List<IMyCubeGrid>();
+							var gridGroup = bag.GetGridGroup(GridLinkTypeEnum.Physical);
+							gridGroup.GetGrids(grids);
+							
+							foreach (IMyCubeGrid g in grids) {
+								if (g.IsStatic) {
+									return;
+								}
+								
+								if (((MyCubeGrid) bag).BlocksCount > ((MyCubeGrid) g).BlocksCount) {
+									bag = g;
+								}
+							}
+							myCubes.Add(bag);
+						}
+					}
+				}
+			}
+			catch (Exception exc) {
+				MyLog.Default.WriteLineAndConsole($"[Thermal] Obj_OnPhysicsChanged error, {exc}");
+			}
+		}
 
         private float GetThermalOutput(IMyCubeGrid block)
         {	
@@ -486,12 +491,11 @@ namespace ThermalScanners
 					}
 				}
 				
-                //if (isStatic || totalPCU < 15000 || !piloted)
-				//if (isStatic || !piloted)
-                //{
+                if (isStatic || totalPCU < 15000 || !piloted)
+                {
                     //MyLog.Default.WriteLineAndConsole("Static");
-                //    return 0.0f;
-                //}
+                    return 0.0f;
+                }
 
                 var gts = MyAPIGateway.TerminalActionsHelper.GetTerminalSystemForGrid(block);
                 if (gts != null)
