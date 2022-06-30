@@ -13,11 +13,8 @@ using VRage.Game.ModAPI;
 using VRage.ModAPI;
 using VRage.Utils;
 using VRageMath;
-using Jakaria.API;
 using IMyCubeGrid = VRage.Game.ModAPI.IMyCubeGrid;
 using IMyEntity = VRage.ModAPI.IMyEntity;
-using IMyWeatherEffects = VRage.Game.ModAPI.IMyWeatherEffects;
-using Sandbox.Game.SessionComponents;
 
 
 namespace ThermalScanners
@@ -48,13 +45,6 @@ namespace ThermalScanners
 
         //Setup variables
         public bool FinishedSetup = false;
-		
-		//Nebula stuff (borrowed from MES)
-		public float nebulaEffect;
-		public bool insideNebula;
-		public float nebulaDensity;
-		public float nebulaMaterial;
-		public string nebulaWeather;
 
         public override void UpdateBeforeSimulation()
         {
@@ -62,7 +52,7 @@ namespace ThermalScanners
 				Update();
 			}
 			catch (Exception exc) {
-				MyLog.Default.WriteLineAndConsole($"[Thermal] Signature error, 	 {exc}");
+				MyLog.Default.WriteLineAndConsole($"[Thermal] Signature error, {exc}");
 			}
 		}
 		
@@ -70,8 +60,8 @@ namespace ThermalScanners
             if (FinishedSetup == false)
             {
                 MyLog.Default.WriteLineAndConsole($"[Therma] (Sig) Not initialized, setting up...");
-                FinishedSetup = true;
-                Setup();
+                FinishedSetup = Setup();
+				return;
             }
             if (!IsServer || (IsServer && !IsDedicated) )
             {
@@ -298,10 +288,11 @@ namespace ThermalScanners
             });
         }
         //MyAPIGateway.Multiplayer.UnregisterMessageHandler(Sync.UModId, Sync.Recieve);
-        public void Setup()
+        public bool Setup()
         {
             IsServer = MyAPIGateway.Multiplayer.IsServer;
             IsDedicated = MyAPIGateway.Utilities.IsDedicated;
+			
             GetHeatGeneratorsAndDefaultSettings();
 
             if (!IsDedicated)
@@ -322,18 +313,7 @@ namespace ThermalScanners
                 }
 
                 ThermalSignaturesHistory = new Dictionary<string, float>();
-
-                      MyAPIGateway.Entities.GetEntities(myCubes, grid =>
-                            { 
-                                if (grid is IMyCubeGrid)
-                                {
-                                    if ((grid as IMyCubeGrid).GridSizeEnum == VRage.Game.MyCubeSize.Small || (grid as IMyCubeGrid).GridSizeEnum == VRage.Game.MyCubeSize.Large)
-                                    {
-                                        return true;
-                                    }
-                                }
-                                return false;
-                            });
+				
                 MyLog.Default.WriteLineAndConsole($"[Thermal] Setting up handlers");
                 MyAPIGateway.Entities.OnEntityAdd += Entities_OnEntityAdd;
 				//Sandbox.Game.Entities.MyEntities.OnEntityCreate += Entities_OnEntityCreate;
@@ -342,9 +322,11 @@ namespace ThermalScanners
 
             if (IsDedicated || IsServer)
             {
-                MyLog.Default.WriteLineAndConsole($"Registering Server");
+                MyLog.Default.WriteLineAndConsole($"[Thermal] Registering Server");
                 ThermalSync.RegisterServer();
             }
+			
+			return true;
         }
 
         private void Bag_OnStaticChanged(MyCubeGrid grid, bool changed)
@@ -382,6 +364,7 @@ namespace ThermalScanners
 			Entities_OnEntityAdd(obj);
 		}
 		*/
+
         private void Entities_OnEntityAdd(IMyEntity obj)
         {
 			//MyLog.Default.WriteLineAndConsole("[Thermal] New entity detected");
@@ -421,26 +404,27 @@ namespace ThermalScanners
 
         private void Obj_OnPhysicsChanged(IMyEntity grid)
         {
-            if (grid is IMyCubeGrid)
+            var bag = grid as IMyCubeGrid;
+            if (bag != null)
             {
-                var bag = grid as IMyCubeGrid;
+                
                 if (!bag.IsStatic)
                 {
                     if (!myCubes.Contains(grid))
                     {
-						List<IMyCubeGrid> grids = new List<IMyCubeGrid>();
-						var gridGroup = bag.GetGridGroup(GridLinkTypeEnum.Physical);
-						gridGroup.GetGrids(grids);
-						
-						foreach (IMyCubeGrid g in grids) {
-							if (g.IsStatic) {
-								return;
-							}
-							
-							if (((MyCubeGrid) bag).BlocksCount > ((MyCubeGrid) g).BlocksCount) {
-								bag = g;
-							}
-						}
+                        List<IMyCubeGrid> grids = new List<IMyCubeGrid>();
+                        var gridGroup = bag.GetGridGroup(GridLinkTypeEnum.Physical);
+                        gridGroup.GetGrids(grids);
+                        
+                        foreach (IMyCubeGrid g in grids) {
+                            if (g.IsStatic) {
+                                return;
+                            }
+                            
+                            if (((MyCubeGrid) bag).BlocksCount > ((MyCubeGrid) g).BlocksCount) {
+                                bag = g;
+                            }
+                        }
                         myCubes.Add(bag);
                     }
                 }
@@ -739,7 +723,6 @@ namespace ThermalScanners
         public float PlanetEffects(float thermal, float atmosphere, Vector3D gridPosition)
         {
             var planetEffect = 0.0f;
-			var weatherEffect = 0.0f;
 
             foreach (var planet in planets)
             {
@@ -758,57 +741,11 @@ namespace ThermalScanners
                         {
                             planetEffect += (atmosphere * airDensity) * ThermalSync.HeatSettings.AtmosphericDensity;
                         }
-                        
-						var weatherIntensity = MyAPIGateway.Session.WeatherEffects.GetWeatherIntensity(gridPosition);
-						if (weatherIntensity != null) {
-							if (weatherIntensity > 1)
-							{
-								weatherIntensity = 1;
-							}
-
-							//weather should reduce thermal when it exists
-							//not sure if clear weather also affects this
-							weatherEffect += weatherIntensity * ThermalSync.HeatSettings.WeatherMultiplier;
-						}
                     }
                 }
             }
 
-			//Compatibility for Jakaria's Nebula mod, borrowed from MES
-            nebulaEffect = 0.0f;
-
-			//if (NebulaAPI.Registered) {
-				
-				if (NebulaAPI.InsideNebula(gridPosition)) {
-					
-					insideNebula = true;
-					nebulaDensity = NebulaAPI.GetNebulaDensity(gridPosition); //nebula densities are often very low, probably not worth using this
-					nebulaMaterial = NebulaAPI.GetMaterial(gridPosition); //no use for this at the current time
-					nebulaWeather = NebulaAPI.GetWeather(gridPosition) ?? "N/A"; //no way to see weather intensity
-
-					//Also checks for nebula weather effects
-					if (nebulaWeather != "N/A") {
-						
-						nebulaEffect += ThermalSync.HeatSettings.NebulaMultiplier * ThermalSync.HeatSettings.WeatherMultiplier;
-						
-					} else {
-
-					nebulaEffect += ThermalSync.HeatSettings.NebulaMultiplier;
-					
-					}
-					
-				} else {
-
-					insideNebula = false;
-					nebulaDensity = 0;
-					nebulaMaterial = 0;
-					nebulaWeather = "N/A";
-				}					
-				
-			//}
-			
-			return thermal * (1 - planetEffect) * (1 - weatherEffect) * (1 - nebulaEffect);
-
+            return thermal - (planetEffect * thermal);
         }
 
         public struct HeatMaps
@@ -841,7 +778,6 @@ namespace ThermalScanners
                         AtmosphericDensity = 1,
                         GravityMultiplier = 1,
                         WeatherMultiplier = 1,
-						NebulaMultiplier = 0.5f, //1.0 means thermal signature is totally gone if in 1.0 nebula
                         LargeGridBaseRange = 12500,
                         SmallGridBaseRange = 7500
                     };
@@ -860,13 +796,12 @@ namespace ThermalScanners
 					AtmosphericDensity = 1,
 					GravityMultiplier = 1,
 					WeatherMultiplier = 1,
-					NebulaMultiplier = 0.5f, //1.0 means thermal signature is totally gone if in 1.0 nebula
 					LargeGridBaseRange = 12500,
 					SmallGridBaseRange = 7500
 				};
 
                 var heatfile = "HeatGenerators.xml";
-/*                 if (MyAPIGateway.Utilities.FileExistsInLocalStorage(heatfile, typeof(List<HeatGenerator>)))
+                if (MyAPIGateway.Utilities.FileExistsInLocalStorage(heatfile, typeof(List<HeatGenerator>)))
                 {
                     MyLog.Default.WriteLineAndConsole($"Loading Heat Generators from HeatGenerators.xml");
                     using (var buffer = MyAPIGateway.Utilities.ReadFileInLocalStorage(heatfile, typeof(List<HeatGenerator>)))
@@ -874,7 +809,7 @@ namespace ThermalScanners
                         ThermalSync.HeatGenerators = MyAPIGateway.Utilities.SerializeFromXML<List<HeatGenerator>>(buffer.ReadToEnd());
 						ThermalSync.Send(new MessagePacket { heatGenerators = ThermalSync.HeatGenerators, settings = ThermalSync.HeatSettings });
                     }
-                } */
+                }
 				if (false) {
 				}
                 else
