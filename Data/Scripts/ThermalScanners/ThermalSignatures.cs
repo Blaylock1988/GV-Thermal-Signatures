@@ -404,6 +404,10 @@ namespace ThermalScanners
 
         private void Obj_OnPhysicsChanged(IMyEntity grid)
         {
+			if (grid.MarkedForClose || grid.Closed)
+			{
+				return;
+			}
             var bag = grid as IMyCubeGrid;
             if (bag != null)
             {
@@ -475,7 +479,8 @@ namespace ThermalScanners
 					}
 				}
 				
-                if (isStatic || totalPCU < 15000 || !piloted)
+                //if (isStatic || totalPCU < 15000 || !piloted)
+				if (isStatic)
                 {
                     //MyLog.Default.WriteLineAndConsole("Static");
                     return 0.0f;
@@ -761,7 +766,7 @@ namespace ThermalScanners
                 var defaultfile = "DefaultGenerators.xml";
 
                 //ThermalSync.HeatSettings
-				/*
+				
                 if (MyAPIGateway.Utilities.FileExistsInLocalStorage(defaultfile, typeof(GlobalHeatSettings)))
                 {
                     MyLog.Default.WriteLineAndConsole($"Loading Global Heat Generators from DefaultGenerators.xml");
@@ -775,11 +780,11 @@ namespace ThermalScanners
                     MyLog.Default.WriteLineAndConsole($"No Default Global Heat Generation File found. Creating one.");
                     ThermalSync.HeatSettings = new GlobalHeatSettings
                     {
-                        AtmosphericDensity = 1,
-                        GravityMultiplier = 1,
-                        WeatherMultiplier = 1,
-                        LargeGridBaseRange = 12500,
-                        SmallGridBaseRange = 7500
+                        AtmosphericDensity = 0,
+                        GravityMultiplier = 0,
+                        WeatherMultiplier = 0.5f,
+                        LargeGridBaseRange = 5000,
+                        SmallGridBaseRange = 5000
                     };
 
                     var serialSet = MyAPIGateway.Utilities.SerializeToXML(ThermalSync.HeatSettings);
@@ -790,15 +795,15 @@ namespace ThermalScanners
                     }
 
                 }
-				*/
-				ThermalSync.HeatSettings = new GlobalHeatSettings
+				
+				/*ThermalSync.HeatSettings = new GlobalHeatSettings
 				{
 					AtmosphericDensity = 1,
 					GravityMultiplier = 1,
 					WeatherMultiplier = 1,
 					LargeGridBaseRange = 12500,
 					SmallGridBaseRange = 7500
-				};
+				};*/
 
                 var heatfile = "HeatGenerators.xml";
                 if (MyAPIGateway.Utilities.FileExistsInLocalStorage(heatfile, typeof(List<HeatGenerator>)))
