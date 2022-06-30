@@ -231,7 +231,7 @@ namespace ThermalScanners
                         {
                             var location = grid.Value.Location;
                             var thermalOutput = grid.Value.Heat;
-                            if (Vector3D.Distance(player.GetPosition(), location) <= thermalOutput && thermalOutput > 15000)
+                            if (Vector3D.Distance(player.GetPosition(), location) <= thermalOutput && thermalOutput > 5000)
                             {
 								
 								var distanceInKm = Convert.ToInt32(thermalOutput) / 1000;
